@@ -2,8 +2,8 @@ package alibaba
 
 import (
 	"context"
-	"fmt"
-	"time"
+
+	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ram"
 	"github.com/hashicorp/go-uuid"
@@ -41,12 +41,10 @@ func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, data 
 		return nil, err
 	}
 
-	displayName := req.DisplayName
-	userUUID, err := uuid.GenerateUUID()
+	userName, err := generateUsername(req.DisplayName, userGroupName)
 	if err != nil {
 		return nil, err
 	}
-	userName := fmt.Sprintf("vault-%s-%s-%s-%data", userGroupName, displayName, userUUID, time.Now().Unix())
 
 	// TODO do I need to do some weird rollback shiznit in case some middle step fails?
 	createUserReq := ram.CreateCreateUserRequest()
@@ -90,6 +88,46 @@ func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, data 
 		resp.Secret.MaxTTL = role.MaxTTL
 	}
 	return resp, nil
+}
+
+// TODO test coverage
+// Normally we'd do something like this to create a username:
+// fmt.Sprintf("vault-%s-%s-%s-%d", userGroupName, displayName, userUUID, time.Now().Unix())
+// However, Alibaba limits the username length to 1-64, so we have to make some sacrifices.
+func generateUsername(displayName, userGroupName string) (string, error) {
+	// Limit set by Alibaba API.
+	maxLength := 64
+
+	// This reserves the length it would take to have a dash in front of the UUID
+	// for readability, and 5 significant base64 characters, which provides 1,073,741,824
+	// possible random combinations.
+	lenReservedForUUID := 6
+
+	userName := userGroupName
+	if displayName != "" {
+		userName += "-" + displayName
+	}
+
+	// However long our username is so far with valuable human-readable naming
+	// conventions, we need to include at least part of a UUID on the end to minimize
+	// the risk of naming collisions.
+	if maxLength-len(userName) > lenReservedForUUID {
+		userName = userName[:maxLength-lenReservedForUUID]
+	}
+
+	uid, err := uuid.GenerateUUID()
+	if err != nil {
+		return "", err
+	}
+	shortenedUUID := strings.Replace(uid, "-", "", -1)
+
+	userName += "-" + shortenedUUID
+	if len(userName) > maxLength {
+		// Slice off the excess UUID, bringing UUID length down to possibly only
+		// 5 significant characters.
+		return userName[:maxLength], nil
+	}
+	return userName, nil
 }
 
 // TODO update this stuff

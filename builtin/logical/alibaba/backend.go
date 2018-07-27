@@ -3,7 +3,6 @@ package alibaba
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -13,7 +12,6 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	var b backend
 	b.Backend = &framework.Backend{
 		Help: strings.TrimSpace(backendHelp),
-
 		PathsSpecial: &logical.Paths{
 			LocalStorage: []string{
 				framework.WALPrefix,
@@ -22,21 +20,16 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 				"config",
 			},
 		},
-
 		Paths: []*framework.Path{
 			pathConfig(),
 			b.pathRole(),
 			pathListRoles(&b),
 			pathCreds(&b),
 		},
-
 		Secrets: []*framework.Secret{
 			secretAccessKeys(&b),
 		},
-
-		WALRollback:       b.walRollback,
-		WALRollbackMinAge: 5 * time.Minute,
-		BackendType:       logical.TypeLogical,
+		BackendType: logical.TypeLogical,
 	}
 	if err := b.Setup(ctx, conf); err != nil {
 		return nil, err

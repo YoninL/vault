@@ -25,7 +25,6 @@ func secretAccessKeys(b *backend) *framework.Secret {
 				Description: "Secret Key",
 			},
 		},
-
 		Renew:  b.secretAccessKeysRenew,
 		Revoke: secretAccessKeysRevoke,
 	}
@@ -88,15 +87,20 @@ func secretAccessKeysRevoke(ctx context.Context, req *logical.Request, d *framew
 		return nil, err
 	}
 
-	// Do the opposite of all this.
-	// TODO can I skip deleting the access key and removing the user from the group
-	// if I just delete the user?
+	/*
+		The most important thing for us to delete is the access key, as it's what
+		we've shared with the caller to use as credentials, so let's do that first.
+	*/
 	accessKeyReq := ram.CreateDeleteAccessKeyRequest()
 	accessKeyReq.UserAccessKeyId = accessKeyID
+	accessKeyReq.UserName = userName
 	if _, err := client.DeleteAccessKey(accessKeyReq); err != nil {
 		return nil, err
 	}
 
+	/*
+		Now let's back that user out of the user group.
+	*/
 	removeUserReq := ram.CreateRemoveUserFromGroupRequest()
 	removeUserReq.UserName = userName
 	removeUserReq.GroupName = userGroupName
@@ -104,6 +108,15 @@ func secretAccessKeysRevoke(ctx context.Context, req *logical.Request, d *framew
 		return nil, err
 	}
 
+	/*
+		At this point, deleting the user SHOULD succeed but an important caveat
+		is that if somebody, out-of-band from Vault, added policies to them,
+		added them to another user group, added an MFA device, or associated
+		ANYTHING else to them, this will fail. We don't try to hunt down and
+		delete every possible thing you can associate with a user in Alibaba,
+		because that list will change over time, and it would also add a bunch
+		of latency to this code.
+	*/
 	deleteUserReq := ram.CreateDeleteUserRequest()
 	deleteUserReq.UserName = userName
 	if _, err := client.DeleteUser(deleteUserReq); err != nil {
