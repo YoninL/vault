@@ -11,7 +11,7 @@ import (
 
 const secretType = "access_key"
 
-func secretAccessKeys(b *backend) *framework.Secret {
+func secretAccessKeys() *framework.Secret {
 	return &framework.Secret{
 		Type: secretType,
 		Fields: map[string]*framework.FieldSchema{
@@ -25,12 +25,12 @@ func secretAccessKeys(b *backend) *framework.Secret {
 				Description: "Secret Key",
 			},
 		},
-		Renew:  b.secretAccessKeysRenew,
+		Renew:  secretAccessKeysRenew,
 		Revoke: secretAccessKeysRevoke,
 	}
 }
 
-func (b *backend) secretAccessKeysRenew(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func secretAccessKeysRenew(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	userGroupName := data.Get("user_group_name").(string)
 
 	resp := &logical.Response{Secret: req.Secret}
@@ -91,20 +91,14 @@ func secretAccessKeysRevoke(ctx context.Context, req *logical.Request, d *framew
 		The most important thing for us to delete is the access key, as it's what
 		we've shared with the caller to use as credentials, so let's do that first.
 	*/
-	accessKeyReq := ram.CreateDeleteAccessKeyRequest()
-	accessKeyReq.UserAccessKeyId = accessKeyID
-	accessKeyReq.UserName = userName
-	if _, err := client.DeleteAccessKey(accessKeyReq); err != nil {
+	if err := deleteAccessKey(client, userName, accessKeyID); err != nil {
 		return nil, err
 	}
 
 	/*
 		Now let's back that user out of the user group.
 	*/
-	removeUserReq := ram.CreateRemoveUserFromGroupRequest()
-	removeUserReq.UserName = userName
-	removeUserReq.GroupName = userGroupName
-	if _, err := client.RemoveUserFromGroup(removeUserReq); err != nil {
+	if err := removeFromGroup(client, userName, userGroupName); err != nil {
 		return nil, err
 	}
 
@@ -117,11 +111,39 @@ func secretAccessKeysRevoke(ctx context.Context, req *logical.Request, d *framew
 		because that list will change over time, and it would also add a bunch
 		of latency to this code.
 	*/
+	if err := deleteUser(client, userName); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func deleteAccessKey(client *ram.Client, userName, accessKeyID string) error {
+	accessKeyReq := ram.CreateDeleteAccessKeyRequest()
+	accessKeyReq.UserAccessKeyId = accessKeyID
+	accessKeyReq.UserName = userName
+	if _, err := client.DeleteAccessKey(accessKeyReq); err != nil {
+		return err
+	}
+	return nil
+}
+
+func removeFromGroup(client *ram.Client, userName, userGroupName string) error {
+	removeUserReq := ram.CreateRemoveUserFromGroupRequest()
+	removeUserReq.UserName = userName
+	removeUserReq.GroupName = userGroupName
+	if _, err := client.RemoveUserFromGroup(removeUserReq); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Note: deleteUser will fail if the user is presently associated with anything
+// in Alibaba.
+func deleteUser(client *ram.Client, userName string) error {
 	deleteUserReq := ram.CreateDeleteUserRequest()
 	deleteUserReq.UserName = userName
 	if _, err := client.DeleteUser(deleteUserReq); err != nil {
-		return nil, err
+		return err
 	}
-
-	return nil, nil
+	return nil
 }

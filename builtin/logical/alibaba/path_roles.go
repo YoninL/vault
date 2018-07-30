@@ -10,11 +10,22 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
-func pathListRoles(b *backend) *framework.Path {
+func pathListRole() *framework.Path {
 	return &framework.Path{
-		Pattern: "role/?$", // TODO also support listing "roles"
+		Pattern: "role/?$",
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.ListOperation: b.operationRolesList,
+			logical.ListOperation: operationRolesList,
+		},
+		HelpSynopsis:    pathListRolesHelpSyn,
+		HelpDescription: pathListRolesHelpDesc,
+	}
+}
+
+func pathListRoles() *framework.Path {
+	return &framework.Path{
+		Pattern: "roles/?$",
+		Callbacks: map[logical.Operation]framework.OperationFunc{
+			logical.ListOperation: operationRolesList,
 		},
 		HelpSynopsis:    pathListRolesHelpSyn,
 		HelpDescription: pathListRolesHelpDesc,
@@ -42,20 +53,12 @@ to 0, in which case the value will fallback to the system/mount defaults.`,
 		Callbacks: map[logical.Operation]framework.OperationFunc{
 			logical.CreateOperation: b.operationRoleCreateUpdate,
 			logical.UpdateOperation: b.operationRoleCreateUpdate,
-			logical.ReadOperation:   b.operationRoleRead,
-			logical.DeleteOperation: b.operationRoleDelete,
+			logical.ReadOperation:   operationRoleRead,
+			logical.DeleteOperation: operationRoleDelete,
 		},
 		HelpSynopsis:    pathRolesHelpSyn,
 		HelpDescription: pathRolesHelpDesc,
 	}
-}
-
-func (b *backend) operationRolesList(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	entries, err := req.Storage.List(ctx, "role/")
-	if err != nil {
-		return nil, err
-	}
-	return logical.ListResponse(entries), nil
 }
 
 func (b *backend) operationRoleCreateUpdate(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -98,7 +101,7 @@ func (b *backend) operationRoleCreateUpdate(ctx context.Context, req *logical.Re
 	return nil, nil
 }
 
-func (b *backend) operationRoleRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func operationRoleRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	role, err := readRole(ctx, req.Storage, data.Get("user_group_name").(string))
 	if err != nil {
 		return nil, err
@@ -114,11 +117,19 @@ func (b *backend) operationRoleRead(ctx context.Context, req *logical.Request, d
 	}, nil
 }
 
-func (b *backend) operationRoleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func operationRoleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	if err := req.Storage.Delete(ctx, "role/"+data.Get("user_group_name").(string)); err != nil {
 		return nil, err
 	}
 	return nil, nil
+}
+
+func operationRolesList(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
+	entries, err := req.Storage.List(ctx, "role/")
+	if err != nil {
+		return nil, err
+	}
+	return logical.ListResponse(entries), nil
 }
 
 func readRole(ctx context.Context, s logical.Storage, roleName string) (*roleEntry, error) {

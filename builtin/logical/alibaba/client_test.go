@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ram"
+	"github.com/hashicorp/vault/builtin/logical/alibaba/util"
 )
 
 func TestStuffWithTheClient(t *testing.T) {
@@ -18,7 +19,10 @@ func TestStuffWithTheClient(t *testing.T) {
 	displayName := "becca"
 	userGroupName := "developers"
 
-	userName := generateUsername(displayName)
+	userName, err := util.GenerateUsername(displayName, userGroupName)
+	if err != nil {
+		panic(err)
+	}
 
 	createUserReq := ram.CreateCreateUserRequest()
 	createUserReq.UserName = userName

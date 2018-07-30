@@ -13,9 +13,6 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	b.Backend = &framework.Backend{
 		Help: strings.TrimSpace(backendHelp),
 		PathsSpecial: &logical.Paths{
-			LocalStorage: []string{
-				framework.WALPrefix,
-			},
 			SealWrapStorage: []string{
 				"config",
 			},
@@ -23,11 +20,12 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 		Paths: []*framework.Path{
 			pathConfig(),
 			b.pathRole(),
-			pathListRoles(&b),
-			pathCreds(&b),
+			pathListRole(),
+			pathListRoles(),
+			b.pathCreds(),
 		},
 		Secrets: []*framework.Secret{
-			secretAccessKeys(&b),
+			secretAccessKeys(),
 		},
 		BackendType: logical.TypeLogical,
 	}
