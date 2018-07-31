@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/vault/helper/wrapping"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/plugin/pb"
+	"github.com/hashicorp/vault/version"
 )
 
 func newGRPCSystemView(conn *grpc.ClientConn) *gRPCSystemViewClient {
@@ -144,6 +145,13 @@ func (s *gRPCSystemViewClient) EntityInfo(entityID string) (*logical.Entity, err
 	}
 
 	return reply.Entity, nil
+}
+
+// TODO: placeholder
+func (s *gRPCSystemViewClient) PluginMetadata() map[string]string {
+	return map[string]string{
+		"VAULT_VERSION": version.GetVersion().Version,
+	}
 }
 
 type gRPCSystemViewServer struct {

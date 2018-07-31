@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/helper/wrapping"
 	"github.com/hashicorp/vault/logical"
+	"github.com/hashicorp/vault/version"
 )
 
 type SystemViewClient struct {
@@ -144,6 +145,13 @@ func (s *SystemViewClient) EntityInfo(entityID string) (*logical.Entity, error) 
 	}
 
 	return reply.Entity, nil
+}
+
+// TODO: placeholder
+func (s *SystemViewClient) PluginMetadata() map[string]string {
+	return map[string]string{
+		"VAULT_VERSION": version.GetVersion().Version,
+	}
 }
 
 type SystemViewServer struct {

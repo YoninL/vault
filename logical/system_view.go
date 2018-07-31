@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/vault/helper/consts"
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/helper/wrapping"
+	"github.com/hashicorp/vault/version"
 )
 
 // SystemView exposes system configuration information in a safe way
@@ -61,6 +62,8 @@ type SystemView interface {
 	// EntityInfo returns a subset of information related to the identity entity
 	// for the given entity id
 	EntityInfo(entityID string) (*Entity, error)
+
+	PluginMetadata() map[string]string
 }
 
 type StaticSystemView struct {
@@ -118,4 +121,10 @@ func (d StaticSystemView) MlockEnabled() bool {
 
 func (d StaticSystemView) EntityInfo(entityID string) (*Entity, error) {
 	return d.EntityVal, nil
+}
+
+func (d StaticSystemView) PluginMetadata() map[string]string {
+	return map[string]string{
+		"VAULT_VERSION": version.GetVersion().Version,
+	}
 }
